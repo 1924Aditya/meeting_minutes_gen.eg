@@ -1,0 +1,112 @@
+.speaker-modal {
+  max-width: 480px;
+}
+
+.modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.modal-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  background: hsla(220,90%,65%,0.12);
+  border: 1px solid hsla(220,90%,65%,0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--primary);
+  flex-shrink: 0;
+}
+
+.modal-title {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.modal-subtitle { display: block; }
+
+.suggestion-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: hsla(220,90%,65%,0.08);
+  border: 1px solid hsla(220,90%,65%,0.2);
+  border-radius: var(--radius-md);
+  margin-bottom: 16px;
+}
+
+.suggestion-icon { font-size: 18px; flex-shrink: 0; }
+.suggestion-body { flex: 1; }
+
+.speaker-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 320px;
+  overflow-y: auto;
+  padding-right: 4px;
+  margin-bottom: 20px;
+}
+
+.no-speakers {
+  padding: 24px;
+  text-align: center;
+}
+
+.speaker-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--glass-border);
+  background: hsla(225,20%,8%,0.4);
+  transition: background var(--transition-fast);
+}
+.speaker-row:hover { background: hsla(225,20%,12%,0.5); }
+
+.speaker-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--speaker-color) 20%, transparent);
+  border: 2px solid var(--speaker-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--speaker-color);
+  flex-shrink: 0;
+}
+
+.speaker-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.speaker-id { display: block; }
+.speaker-name-input { height: 32px; }
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.btn-success-state {
+  background: hsla(145, 65%, 40%, 0.3) !important;
+  color: var(--success) !important;
+  border: 1px solid hsla(145, 65%, 55%, 0.4) !important;
+  cursor: default;
+}

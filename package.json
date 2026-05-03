@@ -1,0 +1,19 @@
+{
+  "name": "samvaad-mom-generator",
+  "version": "1.0.0",
+  "private": true,
+  "description": "SAMVAAD — Real-time Meeting Transcription & MOM Generator",
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "scripts": {
+    "dev": "concurrently -n BACKEND,FRONTEND -c cyan,magenta \"npm run dev --workspace=backend\" \"npm run dev --workspace=frontend\"",
+    "dev:browser": "concurrently -n AI,BACKEND,VITE -c green,cyan,blue \"cd services/ai && .\\venv\\Scripts\\python.exe -u main.py\" \"cd backend && npm run dev\" \"cd frontend && npm run build:dev\"",
+    "clean": "echo Cleaning background tasks... && taskkill /F /FI \"IMAGENAME eq node.exe\" /FI \"PID ne 0\" /T || exit 0",
+    "build:client": "cd frontend && npm run build:full"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

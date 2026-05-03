@@ -1,0 +1,72 @@
+{
+  "name": "samvaad-frontend",
+  "version": "1.0.0",
+  "description": "SAMVAAD — Professional Meeting Intelligence & MOM Generator",
+  "author": "SAMVAAD AI Team",
+  "private": true,
+  "main": "electron/main.js",
+  "homepage": "./",
+  "scripts": {
+    "dev": "concurrently -n VITE,ELECTRON -c blue,green \"vite\" \"wait-on http://localhost:5173 && electron .\"",
+    "build:dev": "vite",
+    "build": "vite build",
+    "electron": "electron .",
+    "preview": "vite preview",
+    "package": "npm run build && electron-builder",
+    "build:ai": "cd ../services/ai && .\\venv\\Scripts\\pyinstaller --noconfirm --onedir --console --name \"ai_service\" --add-data \".;.\" \"main.py\"",
+    "build:full": "npm run build:ai && npm run package"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.10.0",
+    "date-fns": "^3.6.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@electron/rebuild": "^4.0.4",
+    "@vitejs/plugin-react": "^4.3.1",
+    "concurrently": "^8.2.2",
+    "electron": "31.3.1",
+    "electron-builder": "^24.13.3",
+    "electron-rebuild": "^3.2.9",
+    "vite": "^5.4.2",
+    "wait-on": "^7.2.0"
+  },
+  "build": {
+    "appId": "com.samvaad.mom",
+    "productName": "SAMVAAD",
+    "electronVersion": "31.3.1",
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "node_modules/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "../services/ai/dist/ai_service",
+        "to": "ai_service",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "../backend",
+        "to": "backend",
+        "filter": ["**/*", "!node_modules/.cache/**"]
+      },
+      "../.env"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "public/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "installerIcon": "public/icon.ico",
+      "uninstallerIcon": "public/icon.ico"
+    }
+  }
+}
