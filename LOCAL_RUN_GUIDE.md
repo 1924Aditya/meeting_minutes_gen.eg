@@ -4,6 +4,15 @@ Follow these steps to set up and run the SAMVAAD meeting intelligence platform i
 
 ---
 
+## 🔑 Step 0: Configure your API Key
+Since `.env` is private and not pushed to GitHub, you must set it up locally:
+1. Locate `.env.example` in the root folder.
+2. **Copy** it and rename the copy to `.env`.
+3. Open `.env` and paste your **GEMINI_API_KEY**.
+   > *Without this key, the AI Summarizer will not function!*
+
+---
+
 ## ⚡ Option A: Quick Start (One Command)
 If you just want to run everything at once, copy this block and press Enter:
 
