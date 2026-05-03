@@ -13,59 +13,36 @@ Since `.env` is private and not pushed to GitHub, you must set it up locally:
 
 ---
 
-## ⚡ Option A: Quick Start (One Command)
-If you just want to run everything at once, copy this block and press Enter:
+## 💻 Choose your Operating System:
 
+### 🪟 Windows (PowerShell)
+**One-Shot Setup & Launch:**
 ```powershell
 npm install; cd backend; npm install; cd ../frontend; npm install; cd ../services/ai; python -m venv venv; .\venv\Scripts\activate; pip install -r requirements.txt; cd ../..; npm run dev:browser
 ```
 
+**Daily Launch:**
+```powershell
+npm run dev:browser
+```
+
 ---
 
-## 🛠️ Option B: Step-by-Step Setup
-If you prefer to run the steps individually to see the progress:
-
-### 1. Root & Dependencies
-Run this in the main folder (`nttk2nd`):
-```powershell
+### 🍎 macOS / Linux (Terminal)
+**One-Shot Setup & Launch:**
+```bash
+# IMPORTANT: Run these from the project ROOT folder
 npm install
-```
-
-### 2. Backend Setup
-```powershell
-cd backend
-npm install
-cd ..
-```
-
-### 3. Frontend Setup
-```powershell
-cd frontend
-npm install
-cd ..
-```
-
-### 4. AI Service (Python) Setup
-```powershell
-cd services/ai
-python -m venv venv
-.\venv\Scripts\activate
-pip install -r requirements.txt
+cd backend && npm install
+cd ../frontend && npm install
+cd ../services/ai && python3 -m venv venv && source venv/bin/activate && pip install -r requirements.txt
 cd ../..
+npm run dev:mac
 ```
 
-### 5. Final Launch
-```powershell
-npm run dev:browser
-```
-
----
-
-## 🚀 Daily Launch (After Setup)
-Once you have finished the setup above, you only need this command to start the app tomorrow:
-
-```powershell
-npm run dev:browser
+**Daily Launch:**
+```bash
+npm run dev:mac
 ```
 
 ---
@@ -79,11 +56,15 @@ npm run dev:browser
 
 ## 🔍 Troubleshooting
 
-### Stuck background tasks?
-If the app won't start because ports are already in use, run:
-```powershell
-npm run clean
-```
+### "cd: no such file or directory: backend"
+Ensure you are in the **root folder** (`meeting_minutes_gen.eg`) and NOT inside the `frontend` or `backend` folders when you run the startup commands.
 
-### GPU Speedup
+### "command not found: python3" (macOS)
+Ensure Python is installed. You may need to run `brew install python` if it's missing.
+
+### Stuck background tasks?
+- **Windows**: `npm run clean`
+- **Mac/Linux**: `npm run clean:mac`
+
+### GPU Speedup (Windows Only)
 Edit the `.env` file and change `WHISPER_DEVICE=cpu` to `WHISPER_DEVICE=cuda` if you have an NVIDIA GPU.
