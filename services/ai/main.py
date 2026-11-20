@@ -168,12 +168,12 @@ async def process_audio_chunk(chunk_b64: str, chunk_timestamp: str):
 # ── Summarization task ────────────────────────────────────────────────────────
 async def run_summarizer_loop():
     """
-    Every 120 seconds, generate/refine the rolling summary.
+    Generate/refine the rolling summary while the session is active.
     Only sends NEW segments to the LLM to conserve quota and tokens.
     """
-    INITIAL_WAIT = 15     # first summary after 15s
-    LOOP_INTERVAL = 60    # subsequent summaries every 60s
-    last_summarized_idx = 0
+    INITIAL_WAIT = 10
+    LOOP_INTERVAL = 10
+    MIN_WORDS = 20
 
     log.info(f"Summarizer loop starting (initial wait {INITIAL_WAIT}s)...")
     await asyncio.sleep(INITIAL_WAIT)
@@ -188,7 +188,7 @@ async def run_summarizer_loop():
                 text_block = '\n'.join(f"{seg['speaker_name']}: {seg['text']}" for seg in new_segments)
                 word_count = len(text_block.split())
                 
-                if word_count < 50:
+                if word_count < MIN_WORDS:
                     log.info(f"Summarizer: only {word_count} new words, waiting for more...")
                 else:
                     log.info(f"Running summarizer refinement on {len(new_segments)} new segments ({word_count} words)")

@@ -1,9 +1,7 @@
 import os
 import json
-import asyncio
 import logging
 from google import genai
-from typing import List, Dict
 
 log = logging.getLogger('AI')
 
@@ -64,9 +62,8 @@ class Summarizer:
 
         # Use the cutting-edge models discovered on your API Key
         models_to_try = [
-            'gemini-2.0-flash',
-            'gemini-2.5-flash',
-            'gemini-3-flash-preview'
+            'gemini-3.8-flash',
+            'gemini-2.5-flash'
         ]
 
         result = None
@@ -80,7 +77,8 @@ class Summarizer:
                     contents=user_prompt,
                     config={
                         'system_instruction': REFINE_SYSTEM_PROMPT,
-                        'temperature': 0.1
+                        'temperature': 0.1,
+                        'response_mime_type': 'application/json'
                     }
                 )
                 

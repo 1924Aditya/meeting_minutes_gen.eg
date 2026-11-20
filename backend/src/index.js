@@ -3,7 +3,7 @@ import cors from '@fastify/cors'
 import websocket from '@fastify/websocket'
 import { v4 as uuidv4 } from 'uuid'
 import WebSocket from 'ws'
-import { initDb, saveSegment, updateSpeakerMap, getFullSession } from './db.js'
+import { initDb, saveSegment, saveSummary, updateSpeakerMap, getFullSession } from './db.js'
 import { broadcastToClients, clientsMap } from './wsClients.js'
 import { SpeakerMapManager } from './speakerMap.js'
 import { exportMarkdown, exportPDF } from './exporter.js'
@@ -101,6 +101,9 @@ function handleAIMessage(msg) {
     }
 
     case 'SUMMARY_UPDATE': {
+      if (currentSessionId) {
+        saveSummary(currentSessionId, msg)
+      }
       broadcastToClients(msg)
       break
     }
