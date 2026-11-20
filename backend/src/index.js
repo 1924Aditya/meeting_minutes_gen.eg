@@ -9,9 +9,13 @@ import { SpeakerMapManager } from './speakerMap.js'
 import { exportMarkdown, exportPDF } from './exporter.js'
 
 // ── Config ────────────────────────────────────────────────────────────────────
-const BACKEND_PORT    = parseInt(process.env.BACKEND_PORT    || '3001')
-const AI_SERVICE_PORT = parseInt(process.env.AI_SERVICE_PORT || '8766')
-const AI_WS_URL       = `ws://127.0.0.1:${AI_SERVICE_PORT}`
+const BACKEND_PORT = Number.parseInt(process.env.PORT || process.env.BACKEND_PORT || '3001', 10)
+const AI_SERVICE_PORT = Number.parseInt(process.env.AI_SERVICE_PORT || '8766', 10)
+const AI_WS_URL = process.env.AI_WS_URL || `ws://127.0.0.1:${AI_SERVICE_PORT}`
+const corsOrigins = (process.env.CORS_ORIGIN || '*')
+  .split(',')
+  .map(origin => origin.trim())
+  .filter(Boolean)
 
 // ── State ─────────────────────────────────────────────────────────────────────
 let currentSessionId = null
@@ -28,7 +32,9 @@ initDb()
 // ── Fastify ───────────────────────────────────────────────────────────────────
 const app = Fastify({ logger: { level: 'warn' } })
 
-await app.register(cors, { origin: true })
+await app.register(cors, {
+  origin: corsOrigins.length === 1 && corsOrigins[0] === '*' ? true : corsOrigins
+})
 await app.register(websocket)
 
 // ── Connect to Python AI sidecar ──────────────────────────────────────────────

@@ -1,0 +1,15 @@
+.git
+.env
+.env.*
+!.env.example
+node_modules
+**/node_modules
+frontend/dist
+frontend/dist-electron
+services/ai/venv
+services/ai/__pycache__
+*.db
+*.sqlite
+*.sqlite3
+*.log
+SAMVAAD_PROJECT_ANALYSIS.pdf

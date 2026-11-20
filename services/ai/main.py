@@ -35,7 +35,8 @@ logging.basicConfig(
 log = logging.getLogger(__name__)
 
 # ── Config ────────────────────────────────────────────────────────────────────
-PORT        = int(os.environ.get('AI_SERVICE_PORT', 8766))
+PORT        = int(os.environ.get('PORT') or os.environ.get('AI_SERVICE_PORT', 8766))
+HOST        = os.environ.get('AI_SERVICE_HOST', '127.0.0.1')
 SAMPLE_RATE = 16000
 
 # ── Global services (lazy-loaded after model download) ────────────────────────
@@ -317,8 +318,8 @@ async def handler(websocket):
 async def main():
     log.info(f"Starting SAMVAAD AI Service on port {PORT}")
     try:
-        async with websockets.serve(handler, '127.0.0.1', PORT, reuse_address=True):
-            log.info(f"AI Service listening on ws://127.0.0.1:{PORT}")
+        async with websockets.serve(handler, HOST, PORT, reuse_address=True):
+            log.info(f"AI Service listening on ws://{HOST}:{PORT}")
             await asyncio.Future()  # run forever
     except OSError as e:
         if e.errno == 10048: # Windows: Address already in use

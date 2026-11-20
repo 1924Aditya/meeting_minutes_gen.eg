@@ -1,0 +1,41 @@
+services:
+  - type: web
+    name: samvaad-ai
+    runtime: docker
+    dockerfilePath: ./deploy/ai.Dockerfile
+    dockerContext: .
+    plan: free
+    envVars:
+      - key: AI_SERVICE_HOST
+        value: 0.0.0.0
+      - key: AI_SERVICE_PORT
+        value: 10000
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: WHISPER_MODEL
+        value: tiny.en
+      - key: WHISPER_DEVICE
+        value: cpu
+
+  - type: web
+    name: samvaad-backend
+    runtime: docker
+    dockerfilePath: ./deploy/backend.Dockerfile
+    dockerContext: .
+    plan: free
+    envVars:
+      - key: AI_WS_URL
+        value: wss://samvaad-ai.onrender.com
+      - key: CORS_ORIGIN
+        value: https://samvaad-frontend.onrender.com
+      - key: DATA_DIR
+        value: /tmp/samvaad
+
+  - type: web
+    name: samvaad-frontend
+    runtime: static
+    buildCommand: npm ci && npm run build --workspace=frontend
+    staticPublishPath: ./frontend/dist
+    envVars:
+      - key: VITE_BACKEND_WS_URL
+        value: wss://samvaad-backend.onrender.com/ws

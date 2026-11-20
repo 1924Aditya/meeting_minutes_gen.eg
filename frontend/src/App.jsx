@@ -26,6 +26,11 @@ export default function App() {
     setShowExportModal(true)
   }
 
+  const backendWsUrl = import.meta.env.VITE_BACKEND_WS_URL ||
+    (window.location.protocol === 'file:' || !window.location.hostname
+      ? 'ws://127.0.0.1:3001/ws'
+      : `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.hostname}:3001/ws`)
+
   const {
     transcriptSegments,
     summary,
@@ -35,7 +40,7 @@ export default function App() {
     updateSpeakerName,
     clearSession,
     sendSessionControl
-  } = useWebSocket('ws://127.0.0.1:3001/ws')
+  } = useWebSocket(backendWsUrl)
 
   const { startCapture, stopCapture } = useAudioCapture(sendChunk)
 
