@@ -61,10 +61,6 @@ If you have already installed the dependencies:
 npm run dev:browser
 ```
 
-### Deployment
-For a browser deployment with Docker Compose or a hosted WebSocket platform,
-see the **[Deployment Guide](DEPLOYMENT.md)**.
-
 ---
 
 ## 📄 License

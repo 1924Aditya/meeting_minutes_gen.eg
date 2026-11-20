@@ -18,7 +18,8 @@ const STATUS_COLORS = {
 
 export default function TopBar({
   isRecording, selectedSource, onSourceChange, onStartStop,
-  sessionTimer, connectionStatus, onOpenSpeakers, onOpenExport, onClearSession
+  sessionTimer, connectionStatus, onOpenSpeakers, onOpenExport, onClearSession,
+  isBrowserMode, onClearApiKey
 }) {
   const [micLevel, setMicLevel] = useState(0)
   const [sources, setSources] = useState([])
@@ -61,7 +62,9 @@ export default function TopBar({
     fetchSources()
   }, [])
 
-  const canStart = selectedSource && connectionStatus === 'connected'
+  const canStart = isBrowserMode
+    ? connectionStatus === 'connected'
+    : (selectedSource && connectionStatus === 'connected')
 
   return (
     <header className="topbar glass">
@@ -87,7 +90,8 @@ export default function TopBar({
 
       {/* Center controls */}
       <div className="topbar-center">
-        {/* Source selector */}
+        {/* Source selector — hidden in browser mode */}
+        {!isBrowserMode && (
         <div className="source-select-wrap">
           <label className="source-label">Source</label>
           <select
@@ -114,6 +118,14 @@ export default function TopBar({
           </select>
           <span className="select-arrow">▾</span>
         </div>
+        )}
+
+        {/* Browser mode mic label */}
+        {isBrowserMode && (
+          <div className="source-select-wrap">
+            <span className="source-label" style={{ color: 'var(--accent-blue)' }}>🎤 Browser Mic</span>
+          </div>
+        )}
 
         {/* Start/Stop */}
         <button
@@ -121,7 +133,7 @@ export default function TopBar({
           className={`btn ${isRecording ? 'btn-danger' : 'btn-primary'} btn-lg record-btn`}
           onClick={onStartStop}
           disabled={!isRecording && !canStart}
-          title={!selectedSource ? 'Select a source first' : ''}
+          title={!canStart && !isRecording ? (isBrowserMode ? 'Connecting…' : 'Select a source first') : ''}
           style={isRecording ? { boxShadow: `0 0 ${10 + micLevel * 100}px hsla(0, 80%, 60%, ${0.2 + micLevel * 2})` } : {}}
         >
           {isRecording ? (
@@ -139,19 +151,21 @@ export default function TopBar({
           )}
         </button>
 
-        {/* Refresh sources */}
-        <button
-          className="btn btn-ghost btn-sm icon-btn"
-          onClick={fetchSources}
-          disabled={loadingSources || isRecording}
-          data-tooltip="Refresh sources"
-          id="refresh-sources-btn"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
-            <path d="M3 3v5h5"/>
-          </svg>
-        </button>
+        {/* Refresh sources — only in Electron mode */}
+        {!isBrowserMode && (
+          <button
+            className="btn btn-ghost btn-sm icon-btn"
+            onClick={fetchSources}
+            disabled={loadingSources || isRecording}
+            data-tooltip="Refresh sources"
+            id="refresh-sources-btn"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+              <path d="M3 3v5h5"/>
+            </svg>
+          </button>
+        )}
       </div>
 
       {/* Right actions */}
@@ -207,6 +221,19 @@ export default function TopBar({
             <path d="M10 11v6M14 11v6"/>
           </svg>
         </button>
+
+        {/* Clear API Key — only in browser mode */}
+        {isBrowserMode && onClearApiKey && (
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={onClearApiKey}
+            disabled={isRecording}
+            data-tooltip="Change Gemini API key"
+            title="Change Gemini API key"
+          >
+            🔑
+          </button>
+        )}
       </div>
     </header>
   )
