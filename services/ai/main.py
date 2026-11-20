@@ -35,8 +35,7 @@ logging.basicConfig(
 log = logging.getLogger(__name__)
 
 # ── Config ────────────────────────────────────────────────────────────────────
-PORT        = int(os.environ.get('PORT') or os.environ.get('AI_SERVICE_PORT', 8766))
-HOST        = os.environ.get('AI_SERVICE_HOST', '127.0.0.1')
+PORT        = int(os.environ.get('AI_SERVICE_PORT', 8766))
 SAMPLE_RATE = 16000
 
 # ── Global services (lazy-loaded after model download) ────────────────────────
@@ -166,41 +165,60 @@ async def process_audio_chunk(chunk_b64: str, chunk_timestamp: str):
         log.error(f"Error processing audio chunk: {e}", exc_info=True)
 
 # ── Summarization task ────────────────────────────────────────────────────────
+last_summarized_idx = 0
+summary_lock = asyncio.Lock()
+
+async def generate_summary_step(force: bool = False):
+    global last_summarized_idx, session_buffer, summarizer, session_id
+    if not summarizer or not session_buffer:
+        return
+
+    async with summary_lock:
+        if force:
+            # If forced (e.g. session stopped), summarize remaining or full buffer if none yet
+            segments_to_summarize = session_buffer[last_summarized_idx:] if last_summarized_idx < len(session_buffer) else []
+            if not segments_to_summarize and not summarizer.previous_summary:
+                segments_to_summarize = session_buffer
+        else:
+            segments_to_summarize = session_buffer[last_summarized_idx:]
+
+        if not segments_to_summarize:
+            return
+
+        text_block = '\n'.join(f"{seg['speaker_name']}: {seg['text']}" for seg in segments_to_summarize)
+        word_count = len(text_block.split())
+
+        # Dynamic threshold:
+        # - If forced: summarize even with 5+ words
+        # - If first summary: 15 words or >=2 segments
+        # - If incremental summary: 20 words
+        min_words = 5 if force else (15 if last_summarized_idx == 0 else 20)
+        if word_count < min_words and not force:
+            log.info(f"Summarizer: only {word_count} new words (threshold {min_words}), waiting for more conversation...")
+            return
+
+        log.info(f"Running summarizer refinement on {len(segments_to_summarize)} segments ({word_count} words, force={force})")
+        summary = await summarizer.refine(text_block)
+        if summary:
+            last_summarized_idx = len(session_buffer)
+            log.info(f"Summary updated. New index: {last_summarized_idx}")
+            await send({ 'type': 'SUMMARY_UPDATE', 'session_id': session_id, **summary })
+        else:
+            log.warning("Summarizer returned None — LLM call failed or quota exceeded")
+
 async def run_summarizer_loop():
     """
-    Generate/refine the rolling summary while the session is active.
-    Only sends NEW segments to the LLM to conserve quota and tokens.
+    Periodically checks the rolling transcript and refines the summary.
     """
-    INITIAL_WAIT = 10
-    LOOP_INTERVAL = 10
-    MIN_WORDS = 20
+    INITIAL_WAIT = 10     # first summary check after 10s
+    LOOP_INTERVAL = 30    # subsequent summaries every 30s
 
-    log.info(f"Summarizer loop starting (initial wait {INITIAL_WAIT}s)...")
+    log.info(f"Summarizer loop starting (initial wait {INITIAL_WAIT}s, interval {LOOP_INTERVAL}s)...")
     await asyncio.sleep(INITIAL_WAIT)
 
     while True:
         try:
-            if summarizer and len(session_buffer) > last_summarized_idx:
-                # Only take segments that haven't been summarized yet
-                new_segments = session_buffer[last_summarized_idx:]
-                
-                # Minimum threshold: don't call LLM for just a few words
-                text_block = '\n'.join(f"{seg['speaker_name']}: {seg['text']}" for seg in new_segments)
-                word_count = len(text_block.split())
-                
-                if word_count < MIN_WORDS:
-                    log.info(f"Summarizer: only {word_count} new words, waiting for more...")
-                else:
-                    log.info(f"Running summarizer refinement on {len(new_segments)} new segments ({word_count} words)")
-                    summary = await summarizer.refine(text_block)
-                    if summary:
-                        last_summarized_idx = len(session_buffer)
-                        log.info(f"Summary updated. New index: {last_summarized_idx}")
-                        await send({ 'type': 'SUMMARY_UPDATE', **summary })
-                    else:
-                        log.warning("Summarizer returned None — LLM may have failed")
-            else:
-                log.info(f"Summarizer skipped: summarizer={'ready' if summarizer else 'None'}, new_content={len(session_buffer) > last_summarized_idx}")
+            await generate_summary_step(force=False)
         except Exception as e:
             log.error(f"Summarizer error: {e}", exc_info=True)
 
@@ -208,17 +226,20 @@ async def run_summarizer_loop():
 
 # ── Message handler ───────────────────────────────────────────────────────────
 async def handle_message(msg: dict):
-    global session_id, session_buffer, speaker_map, summary_task
+    global session_id, session_buffer, speaker_map, summary_task, last_summarized_idx
 
     mtype = msg.get('type')
 
     if mtype == 'SESSION_START':
         global last_mfcc, current_speaker_id
-        session_id     = msg.get('session_id', 'default')
-        session_buffer = []
-        speaker_map    = {}
-        last_mfcc      = None
-        current_speaker_id = "Spk_0"
+        session_id          = msg.get('session_id', 'default')
+        session_buffer      = []
+        last_summarized_idx = 0
+        speaker_map         = {}
+        last_mfcc           = None
+        current_speaker_id  = "Spk_0"
+        if summarizer:
+            summarizer.reset()
         if summary_task:
             summary_task.cancel()
         summary_task = asyncio.create_task(run_summarizer_loop())
@@ -228,7 +249,12 @@ async def handle_message(msg: dict):
         if summary_task:
             summary_task.cancel()
             summary_task = None
-        log.info("Session stopped")
+        log.info("Session stopped. Triggering final summary pass...")
+        asyncio.create_task(generate_summary_step(force=True))
+
+    elif mtype == 'GENERATE_SUMMARY' or mtype == 'REQUEST_SUMMARY':
+        log.info("Manual summary request received. Generating now...")
+        asyncio.create_task(generate_summary_step(force=True))
 
     elif mtype == 'AUDIO_CHUNK':
         await process_audio_chunk(
@@ -241,9 +267,12 @@ async def handle_message(msg: dict):
         log.info(f"Speaker mapped: {msg['speaker_id']} → {msg['name']}")
 
     elif mtype == 'CLEAR_SESSION':
-        session_id     = None
-        session_buffer = []
-        speaker_map    = {}
+        session_id          = None
+        session_buffer      = []
+        last_summarized_idx = 0
+        speaker_map         = {}
+        if summarizer:
+            summarizer.reset()
         if summary_task:
             summary_task.cancel()
             summary_task = None
@@ -318,8 +347,8 @@ async def handler(websocket):
 async def main():
     log.info(f"Starting SAMVAAD AI Service on port {PORT}")
     try:
-        async with websockets.serve(handler, HOST, PORT, reuse_address=True):
-            log.info(f"AI Service listening on ws://{HOST}:{PORT}")
+        async with websockets.serve(handler, '127.0.0.1', PORT, reuse_address=True):
+            log.info(f"AI Service listening on ws://127.0.0.1:{PORT}")
             await asyncio.Future()  # run forever
     except OSError as e:
         if e.errno == 10048: # Windows: Address already in use

@@ -3,19 +3,15 @@ import cors from '@fastify/cors'
 import websocket from '@fastify/websocket'
 import { v4 as uuidv4 } from 'uuid'
 import WebSocket from 'ws'
-import { initDb, saveSegment, saveSummary, updateSpeakerMap, getFullSession } from './db.js'
+import { initDb, saveSegment, saveSummary, updateSpeakerMap, getFullSession, endSession } from './db.js'
 import { broadcastToClients, clientsMap } from './wsClients.js'
 import { SpeakerMapManager } from './speakerMap.js'
 import { exportMarkdown, exportPDF } from './exporter.js'
 
 // ── Config ────────────────────────────────────────────────────────────────────
-const BACKEND_PORT = Number.parseInt(process.env.PORT || process.env.BACKEND_PORT || '3001', 10)
-const AI_SERVICE_PORT = Number.parseInt(process.env.AI_SERVICE_PORT || '8766', 10)
-const AI_WS_URL = process.env.AI_WS_URL || `ws://127.0.0.1:${AI_SERVICE_PORT}`
-const corsOrigins = (process.env.CORS_ORIGIN || '*')
-  .split(',')
-  .map(origin => origin.trim())
-  .filter(Boolean)
+const BACKEND_PORT    = parseInt(process.env.BACKEND_PORT    || '3001')
+const AI_SERVICE_PORT = parseInt(process.env.AI_SERVICE_PORT || '8766')
+const AI_WS_URL       = `ws://127.0.0.1:${AI_SERVICE_PORT}`
 
 // ── State ─────────────────────────────────────────────────────────────────────
 let currentSessionId = null
@@ -32,9 +28,7 @@ initDb()
 // ── Fastify ───────────────────────────────────────────────────────────────────
 const app = Fastify({ logger: { level: 'warn' } })
 
-await app.register(cors, {
-  origin: corsOrigins.length === 1 && corsOrigins[0] === '*' ? true : corsOrigins
-})
+await app.register(cors, { origin: true })
 await app.register(websocket)
 
 // ── Connect to Python AI sidecar ──────────────────────────────────────────────
@@ -101,8 +95,9 @@ function handleAIMessage(msg) {
     }
 
     case 'SUMMARY_UPDATE': {
-      if (currentSessionId) {
-        saveSummary(currentSessionId, msg)
+      const sessId = msg.session_id || currentSessionId
+      if (sessId) {
+        saveSummary(sessId, msg)
       }
       broadcastToClients(msg)
       break
@@ -179,6 +174,9 @@ function handleRendererMessage(msg, socket) {
         }
       } else if (msg.action === 'stop') {
         console.log(`[Backend] Stopping session: ${currentSessionId}`)
+        if (currentSessionId) {
+          endSession(currentSessionId)
+        }
         if (aiConnected && aiSocket?.readyState === 1) {
           aiSocket.send(JSON.stringify({ type: 'SESSION_STOP' }))
         }
