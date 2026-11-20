@@ -62,9 +62,7 @@ export default function TopBar({
     fetchSources()
   }, [])
 
-  const canStart = isBrowserMode
-    ? connectionStatus === 'connected'
-    : (selectedSource && connectionStatus === 'connected')
+  const canStart = selectedSource && connectionStatus === 'connected'
 
   return (
     <header className="topbar glass">
@@ -90,8 +88,7 @@ export default function TopBar({
 
       {/* Center controls */}
       <div className="topbar-center">
-        {/* Source selector — hidden in browser mode */}
-        {!isBrowserMode && (
+        {/* Source selector */}
         <div className="source-select-wrap">
           <label className="source-label">Source</label>
           <select
@@ -110,7 +107,7 @@ export default function TopBar({
                 <option key={s.id} value={s.id}>{s.name}</option>
               ))}
             </optgroup>
-            <optgroup label="System / Apps">
+            <optgroup label="System / Tab Audio">
               {sources.filter(s => s.type !== 'mic').map(s => (
                 <option key={s.id} value={s.id}>{s.name}</option>
               ))}
@@ -118,14 +115,6 @@ export default function TopBar({
           </select>
           <span className="select-arrow">▾</span>
         </div>
-        )}
-
-        {/* Browser mode mic label */}
-        {isBrowserMode && (
-          <div className="source-select-wrap">
-            <span className="source-label" style={{ color: 'var(--accent-blue)' }}>🎤 Browser Mic</span>
-          </div>
-        )}
 
         {/* Start/Stop */}
         <button
@@ -133,7 +122,7 @@ export default function TopBar({
           className={`btn ${isRecording ? 'btn-danger' : 'btn-primary'} btn-lg record-btn`}
           onClick={onStartStop}
           disabled={!isRecording && !canStart}
-          title={!canStart && !isRecording ? (isBrowserMode ? 'Connecting…' : 'Select a source first') : ''}
+          title={!canStart && !isRecording ? (!selectedSource ? 'Select a source first' : 'Connecting…') : ''}
           style={isRecording ? { boxShadow: `0 0 ${10 + micLevel * 100}px hsla(0, 80%, 60%, ${0.2 + micLevel * 2})` } : {}}
         >
           {isRecording ? (

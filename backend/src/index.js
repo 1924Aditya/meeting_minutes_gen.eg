@@ -48,6 +48,33 @@ Analyze the transcript and output ONLY valid JSON (no markdown, no explanation):
 }
 Rules: Be concise, professional, boardroom-quality. Update prior state with new info.`
 
+async function transcribeAudioChunkGemini(base64Audio, apiKey) {
+  if (!apiKey || !base64Audio) return null
+  try {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+      {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({
+          contents: [{
+            parts: [
+              { text: 'Transcribe this audio verbatim. If there is only silence, music, or no clear human speech, return an empty string.' },
+              { inline_data: { mime_type: 'audio/wav', data: base64Audio } }
+            ]
+          }]
+        })
+      }
+    )
+    const data = await res.json()
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim()
+    return text || null
+  } catch (err) {
+    console.error('[Gemini STT] Fetch error:', err.message)
+    return null
+  }
+}
+
 async function callGeminiNode(transcriptText, apiKey) {
   if (!apiKey) return null
   const context = previousSummary
@@ -335,15 +362,32 @@ function handleRendererMessage(msg, socket) {
     case 'AUDIO_CHUNK': {
       const payload = { type: 'AUDIO_CHUNK', session_id: currentSessionId, ...msg }
       
-      // Log audio reception to verify Chrome is sending data
-      if (msg.data) {
-        console.log(`[Backend] 🎤 Received audio chunk (${msg.data.length} chars)`)
+      const audioData = msg.audio_b64 || msg.data
+      if (audioData) {
+        console.log(`[Backend] 🎤 Received audio chunk (${audioData.length} chars)`)
       }
 
       if (aiConnected && aiSocket?.readyState === 1) {
         aiSocket.send(JSON.stringify(payload))
+      } else if (sessionGeminiKey && audioData && currentSessionId) {
+        // Cloud / Browser mode: transcribe tab/system audio using Gemini
+        transcribeAudioChunkGemini(audioData, sessionGeminiKey).then(text => {
+          if (text) {
+            console.log(`[Backend] Gemini transcribed chunk: "${text}"`)
+            const segment = {
+              id:           uuidv4(),
+              speaker_id:   'Spk_0',
+              speaker_name: speakerManager.getName(currentSessionId, 'Spk_0') || 'Tab Audio',
+              text:         text,
+              timestamp:    msg.timestamp || new Date().toISOString(),
+              entities:     []
+            }
+            saveSegment(currentSessionId, segment)
+            sessionBuffer.push({ speaker_id: segment.speaker_id, text: segment.text, timestamp: segment.timestamp })
+            broadcastToClients({ type: 'TRANSCRIPT_UPDATE', ...segment })
+          }
+        })
       } else {
-        console.log(`[Backend] AI Service not ready, queuing chunk. Queue size: ${chunkQueue.length}`)
         if (chunkQueue.length < QUEUE_MAX) chunkQueue.push(payload)
         else chunkQueue.shift()
       }

@@ -53,11 +53,14 @@ export default function App() {
     if (geminiKey) setWsApiKey(geminiKey)
   }, [geminiKey, setWsApiKey])
 
-  // Browser mode: use Web Speech API
-  // Local Electron mode: use raw audio capture → Python Whisper
+  // Capture methods:
+  // - System / Tab audio always uses audioCapture (triggers getDisplayMedia Chrome tab picker)
+  // - Microphone in browser mode uses speechCapture (Web Speech API)
+  // - In Electron mode, always uses audioCapture
   const speechCapture = useSpeechCapture(sendTranscript)
   const audioCapture  = useAudioCapture(sendChunk)
-  const { startCapture, stopCapture } = IS_BROWSER_MODE ? speechCapture : audioCapture
+  const isSystemAudio = selectedSource?.type === 'system'
+  const { startCapture, stopCapture } = (!IS_BROWSER_MODE || isSystemAudio) ? audioCapture : speechCapture
 
   // Session timer
   useEffect(() => {
