@@ -25,14 +25,6 @@ export function exportMarkdown(session) {
   }
 
   // Summary
-  if (summary?.key_topics?.length) {
-    md += `## 💡 Key Topics\n\n`
-    summary.key_topics.forEach(t => {
-      md += `- **${t.topic}**: ${t.summary}\n`
-    })
-    md += `\n`
-  }
-
   if (summary?.decisions?.length) {
     md += `## ⚡ Decisions\n\n`
     summary.decisions.forEach((d, i) => { md += `${i + 1}. ${d}\n` })

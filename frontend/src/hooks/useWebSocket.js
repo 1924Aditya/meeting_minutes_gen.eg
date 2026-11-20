@@ -20,11 +20,6 @@ export default function useWebSocket(url) {
       ws.onopen = () => {
         setConnectionStatus('connected')
         reconnectCountRef.current = 0
-        // Re-send API key after reconnect
-        const pendingKey = wsRef.current?._pendingApiKey
-        if (pendingKey) {
-          ws.send(JSON.stringify({ type: 'SET_API_KEY', key: pendingKey }))
-        }
       }
 
       ws.onmessage = (event) => {
@@ -166,31 +161,10 @@ export default function useWebSocket(url) {
   }, [connect])
 
   const sendChunk = useCallback((chunkData) => {
+    console.log('[useWebSocket] sendChunk called, state:', wsRef.current?.readyState)
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({ type: 'AUDIO_CHUNK', ...chunkData }))
     }
-  }, [])
-
-  // Browser-mode: send final transcript text directly (bypasses Python Whisper)
-  const sendTranscript = useCallback(({ text, speaker_id, timestamp }) => {
-    if (!text?.trim()) return
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({
-        type:       'BROWSER_TRANSCRIPT',
-        text:       text.trim(),
-        speaker_id: speaker_id || 'Spk_0',
-        timestamp:  timestamp || new Date().toISOString()
-      }))
-    }
-  }, [])
-
-  // Send the user's Gemini API key to backend for summarization
-  const setApiKey = useCallback((key) => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ type: 'SET_API_KEY', key }))
-    }
-    // Also store on wsRef so we can send it on reconnect
-    wsRef.current._pendingApiKey = key
   }, [])
 
   const updateSpeakerName = useCallback((speakerId, name) => {
@@ -225,8 +199,6 @@ export default function useWebSocket(url) {
     speakers,
     connectionStatus,
     sendChunk,
-    sendTranscript,
-    setApiKey,
     updateSpeakerName,
     clearSession,
     sendSessionControl

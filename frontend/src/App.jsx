@@ -4,27 +4,18 @@ import TranscriptPanel from './components/TranscriptPanel'
 import SummaryPanel from './components/SummaryPanel'
 import SpeakerMapModal from './components/SpeakerMapModal'
 import ExportModal from './components/ExportModal'
-import ApiKeySetup from './components/ApiKeySetup'
+import FirstRunScreen from './components/FirstRunScreen'
 import useWebSocket from './hooks/useWebSocket'
 import useAudioCapture from './hooks/useAudioCapture'
-import useSpeechCapture from './hooks/useSpeechCapture'
 import './styles/app.css'
 
-// Determine backend WebSocket URL:
-// - In production (Vercel), use the env variable set at build time
-// - In local dev, use localhost
-const WS_URL = import.meta.env.VITE_BACKEND_WS_URL || 'ws://127.0.0.1:3001/ws'
-
-// Detect if we're running in a browser (not Electron) — cloud mode
-const IS_BROWSER_MODE = !window.samvaad
-
 export default function App() {
-  const [geminiKey, setGeminiKey]       = useState(() => localStorage.getItem('samvaad_gemini_key') || null)
-  const [isRecording, setIsRecording]   = useState(false)
+  const [isFirstRun, setIsFirstRun] = useState(false)
+  const [isRecording, setIsRecording] = useState(false)
   const [selectedSource, setSelectedSource] = useState(null)
   const [showSpeakerModal, setShowSpeakerModal] = useState(false)
-  const [showExportModal, setShowExportModal]   = useState(false)
-  const [exportMode, setExportMode]     = useState('all')
+  const [showExportModal, setShowExportModal] = useState(false)
+  const [exportMode, setExportMode] = useState('all')
   const [speakerSuggestion, setSpeakerSuggestion] = useState(null)
   const [sessionTimer, setSessionTimer] = useState(0)
   const [captureError, setCaptureError] = useState(null)
@@ -41,26 +32,26 @@ export default function App() {
     speakers,
     connectionStatus,
     sendChunk,
-    sendTranscript,
     updateSpeakerName,
     clearSession,
-    sendSessionControl,
-    setApiKey: setWsApiKey
-  } = useWebSocket(WS_URL)
+    sendSessionControl
+  } = useWebSocket('ws://127.0.0.1:3001/ws')
 
-  // Pass API key to backend via WebSocket whenever it changes
+  const { startCapture, stopCapture } = useAudioCapture(sendChunk)
+
+  // Check first run
   useEffect(() => {
-    if (geminiKey) setWsApiKey(geminiKey)
-  }, [geminiKey, setWsApiKey])
-
-  // Capture methods:
-  // - System / Tab audio always uses audioCapture (triggers getDisplayMedia Chrome tab picker)
-  // - Microphone in browser mode uses speechCapture (Web Speech API)
-  // - In Electron mode, always uses audioCapture
-  const speechCapture = useSpeechCapture(sendTranscript)
-  const audioCapture  = useAudioCapture(sendChunk)
-  const isSystemAudio = selectedSource?.type === 'system'
-  const { startCapture, stopCapture } = (!IS_BROWSER_MODE || isSystemAudio) ? audioCapture : speechCapture
+    const checkFirstRun = async () => {
+      if (window.samvaad) {
+        const firstRun = await window.samvaad.isFirstRun()
+        setIsFirstRun(firstRun)
+      } else {
+        // If not in electron, assume first run so models initialize correctly
+        setIsFirstRun(true)
+      }
+    }
+    checkFirstRun()
+  }, [])
 
   // Session timer
   useEffect(() => {
@@ -80,21 +71,22 @@ export default function App() {
       sendSessionControl('stop')
       setIsRecording(false)
     } else {
-      if (!IS_BROWSER_MODE && !selectedSource) {
+      if (!selectedSource) {
         setCaptureError('Please select an audio source first.')
         return
       }
       try {
-        await startCapture(selectedSource || { type: 'mic' })
+        await startCapture(selectedSource)
         sendSessionControl('start')
         setIsRecording(true)
+        console.log('[App] Session started successfully')
       } catch (err) {
         console.error('Audio capture failed:', err)
         const msg = err?.name === 'NotAllowedError'
-          ? 'Microphone permission denied. Please allow microphone access and try again.'
+          ? 'Microphone permission denied. Please allow access in Windows Settings and try again.'
           : err?.name === 'NotFoundError'
-          ? 'Microphone not found. Please check your audio device.'
-          : `Error: ${err?.message || 'Could not start audio capture'}`
+          ? 'Selected audio device not found. Please refresh sources.'
+          : `System error: ${err?.message || 'Could not start audio engine'}`
         setCaptureError(msg)
         setIsRecording(false)
       }
@@ -105,14 +97,12 @@ export default function App() {
     updateSpeakerName(speakerId, name)
   }, [updateSpeakerName])
 
-  const handleClearKey = () => {
-    localStorage.removeItem('samvaad_gemini_key')
-    setGeminiKey(null)
+  const handleFirstRunComplete = () => {
+    setIsFirstRun(false)
   }
 
-  // Show API key setup if no key stored (browser mode only)
-  if (IS_BROWSER_MODE && !geminiKey) {
-    return <ApiKeySetup onKeySubmit={(key) => setGeminiKey(key)} />
+  if (isFirstRun) {
+    return <FirstRunScreen onComplete={handleFirstRunComplete} />
   }
 
   return (
@@ -134,8 +124,6 @@ export default function App() {
           onOpenSpeakers={() => setShowSpeakerModal(true)}
           onOpenExport={() => openExport('all')}
           onClearSession={clearSession}
-          isBrowserMode={IS_BROWSER_MODE}
-          onClearApiKey={handleClearKey}
         />
 
         {captureError && (

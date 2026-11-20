@@ -46,16 +46,9 @@ export function initDb() {
       decisions    TEXT DEFAULT '[]',
       action_items TEXT DEFAULT '[]',
       deadlines    TEXT DEFAULT '[]',
-      key_topics   TEXT DEFAULT '[]',
       updated_at   TEXT
     );
   `)
-
-  try {
-    db.exec(`ALTER TABLE summaries ADD COLUMN key_topics TEXT DEFAULT '[]'`)
-  } catch (_) {
-    // Column already exists
-  }
 
   console.log(`[DB] Initialized at ${DB_PATH}`)
 }
@@ -121,17 +114,15 @@ export function getSpeakerMap(sessionId) {
 
 // ── Summary ───────────────────────────────────────────────────────────────────
 export function saveSummary(sessionId, summary) {
-  createSession(sessionId)
   db.prepare(`
     INSERT OR REPLACE INTO summaries
-      (session_id, decisions, action_items, deadlines, key_topics, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?)
+      (session_id, decisions, action_items, deadlines, updated_at)
+    VALUES (?, ?, ?, ?, ?)
   `).run(
     sessionId,
     JSON.stringify(summary.decisions || []),
     JSON.stringify(summary.action_items || []),
     JSON.stringify(summary.deadlines || []),
-    JSON.stringify(summary.key_topics || []),
     new Date().toISOString()
   )
 }
@@ -142,8 +133,7 @@ export function getSummary(sessionId) {
   return {
     decisions:    JSON.parse(row.decisions || '[]'),
     action_items: JSON.parse(row.action_items || '[]'),
-    deadlines:    JSON.parse(row.deadlines || '[]'),
-    key_topics:   JSON.parse(row.key_topics || '[]')
+    deadlines:    JSON.parse(row.deadlines || '[]')
   }
 }
 
