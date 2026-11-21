@@ -35,11 +35,7 @@ export default function App() {
     updateSpeakerName,
     clearSession,
     sendSessionControl
-  } = useWebSocket(
-    import.meta.env.DEV
-      ? 'ws://127.0.0.1:3001/ws'
-      : `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}/ws`
-  )
+  } = useWebSocket('ws://127.0.0.1:3001/ws')
 
   const { startCapture, stopCapture } = useAudioCapture(sendChunk)
 
