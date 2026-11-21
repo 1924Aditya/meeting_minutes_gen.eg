@@ -1,70 +1,164 @@
-# SAMVAAD — Local Development Guide (Chrome)
+# SAMVAAD Local Setup Guide
 
-Follow these steps to set up and run the SAMVAAD meeting intelligence platform in your browser.
+This guide explains how to install and run SAMVAAD on Windows, macOS, or Linux.
 
----
+## Requirements
 
-## 🔑 Step 0: Configure your API Key
-Since `.env` is private and not pushed to GitHub, you must set it up locally:
-1. Locate `.env.example` in the root folder.
-2. **Copy** it and rename the copy to `.env`.
-3. Open `.env` and paste your **GEMINI_API_KEY**.
-   > *Without this key, the AI Summarizer will not function!*
+- Node.js 20 or newer
+- npm
+- Python 3.10 or newer
+- Google Gemini API key
+- 8 GB RAM recommended
+- Microphone or system-audio permission
 
----
+For Whisper model downloads, CUDA, or application updates, an internet connection is required.
 
-## 💻 Choose your Operating System:
+## 1. Install Dependencies
 
-### 🪟 Windows (PowerShell)
-**One-Shot Setup & Launch:**
-```powershell
-npm install; cd backend; npm install; cd ../frontend; npm install; cd ../services/ai; python -m venv venv; .\venv\Scripts\activate; pip install -r requirements.txt; cd ../..; npm run dev:browser
+Open a terminal in the project root and run:
+
+```text
+npm run setup
 ```
 
-**Daily Launch:**
-```powershell
-npm run dev:browser
+This command:
+
+1. Copies `.env.example` to `.env` when `.env` does not exist.
+2. Installs all Node.js workspace dependencies.
+3. Creates `services/ai/venv`.
+4. Installs the Python AI dependencies.
+
+Only run this command again when dependencies or the environment change.
+
+## 2. Configure the API Key
+
+Open `.env` in the project root and set:
+
+```dotenv
+GEMINI_API_KEY=your_gemini_api_key
 ```
 
----
+Whisper configuration can also be changed in `.env`:
 
-### 🍎 macOS / Linux (Terminal)
-**One-Shot Setup & Launch:**
-```bash
-# IMPORTANT: Run these from the project ROOT folder
-npm install
-cd backend && npm install
-cd ../frontend && npm install
-cd ../services/ai && python3 -m venv venv && source venv/bin/activate && pip install -r requirements.txt
-cd ../..
-npm run dev:mac
+```dotenv
+WHISPER_MODEL=base.en
+WHISPER_DEVICE=cpu
+BACKEND_PORT=3001
+AI_SERVICE_PORT=8766
 ```
 
-**Daily Launch:**
-```bash
-npm run dev:mac
+Use `WHISPER_DEVICE=cuda` only on a system with a working NVIDIA CUDA installation.
+
+## 3. Start SAMVAAD
+
+Run one command:
+
+```text
+npm start
 ```
 
----
+The start command automatically selects the browser development workflow for Windows and macOS/Linux.
 
-## 🌐 Accessing the App
-1. Wait for the terminal to show: `[AI INFO] AI Service listening on ws://127.0.0.1:8766`.
-2. Open **Chrome** and go to: **http://localhost:5173**
-3. Select your audio source and click **Start Session**.
+When startup is complete:
 
----
+- Open `http://localhost:5173`
+- Select a microphone or audio source
+- Start a recording session
 
-## 🔍 Troubleshooting
+## Windows Notes
 
-### "cd: no such file or directory: backend"
-Ensure you are in the **root folder** (`meeting_minutes_gen.eg`) and NOT inside the `frontend` or `backend` folders when you run the startup commands.
+If `python` is not recognized, install Python from python.org or Microsoft Store and enable "Add Python to PATH".
 
-### "command not found: python3" (macOS)
-Ensure Python is installed. You may need to run `brew install python` if it's missing.
+Port cleanup is available separately:
 
-### Stuck background tasks?
-- **Windows**: `npm run clean`
-- **Mac/Linux**: `npm run clean:mac`
+```text
+npm run clean
+```
 
-### GPU Speedup (Windows Only)
-Edit the `.env` file and change `WHISPER_DEVICE=cpu` to `WHISPER_DEVICE=cuda` if you have an NVIDIA GPU.
+## macOS and Linux Notes
+
+If Python 3 is only available as `python3`, the setup command detects it automatically.
+
+For screen or tab audio capture, grant screen-recording and browser-media permissions when prompted.
+
+Port cleanup is available separately:
+
+```text
+npm run clean:mac
+```
+
+## Runtime Ports
+
+| Service | Address |
+|---|---|
+| Frontend | `http://localhost:5173` |
+| Backend API and WebSocket | `http://localhost:3001` |
+| Python AI WebSocket | `127.0.0.1:8766` |
+
+## Data Location
+
+SQLite meeting data is stored outside the source tree:
+
+- Windows: `%APPDATA%\samvaad\samvaad.db`
+- macOS/Linux: `$HOME/samvaad/samvaad.db`
+
+Set `DATA_DIR` in `.env` to use a custom location.
+
+## Browser Audio Sources
+
+- Microphone: captures the selected or default microphone.
+- Browser tab or screen: captures available display/tab audio.
+- Desktop application/window: available in Electron mode.
+
+The browser may require HTTPS or an Electron environment for some system-audio capture features.
+
+## Build and Test
+
+Run tests:
+
+```text
+npm test
+```
+
+Build the frontend:
+
+```text
+npm run build --workspace=frontend
+```
+
+Build the complete Electron package:
+
+```text
+npm run build:client
+```
+
+## Troubleshooting
+
+### `EADDRINUSE`
+
+A previous SAMVAAD process still owns a port. On Windows run `npm run clean`. On macOS/Linux run `npm run clean:mac`, then run `npm start`.
+
+### Backend cannot connect to AI
+
+Confirm the AI service reached:
+
+```text
+AI Service listening on ws://127.0.0.1:8766
+```
+
+Then restart SAMVAAD.
+
+### Gemini summarization is unavailable
+
+Check that `GEMINI_API_KEY` is present in `.env`. Verify that the key has access to at least one supported Gemini text model and sufficient quota.
+
+### Whisper initialization is slow
+
+The first launch downloads the configured Whisper model. Later launches reuse the cached model.
+
+### Frontend opens but no transcript appears
+
+1. Confirm the browser source is selected.
+2. Allow microphone or screen-sharing permissions.
+3. Confirm the backend health endpoint: `http://localhost:3001/health`.
+4. Confirm Whisper initialization completed without errors.

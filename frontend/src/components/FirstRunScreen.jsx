@@ -3,7 +3,7 @@ import './FirstRunScreen.css'
 
 const STEPS = [
   { id: 'whisper', label: 'Whisper Speech Model',  desc: 'faster-whisper tiny.en (~75 MB)', icon: '🎙️' },
-  { id: 'gemini',  label: 'Gemini AI Summarizer',  desc: 'Google Gemini 2.0 Flash (API)',    icon: '⚡' },
+  { id: 'gemini',  label: 'Gemini AI Summarizer',  desc: 'Google Gemini models (API)',      icon: '⚡' },
 ]
 
 export default function FirstRunScreen({ onComplete }) {
@@ -21,14 +21,15 @@ export default function FirstRunScreen({ onComplete }) {
       setStatuses(s => ({ ...s, [model]: status }))
       setCurrentStep(model)
       if (status === 'done') {
-        const allComplete = STEPS.every(step =>
-          statuses[step.id] === 'done' || step.id === model
-        )
-        if (allComplete) setAllDone(true)
+        setStatuses(currentStatuses => {
+          const complete = STEPS.every(step => currentStatuses[step.id] === 'done')
+          if (complete) setAllDone(true)
+          return currentStatuses
+        })
       }
     })
     return unsub
-  }, [statuses])
+  }, [])
 
   const handleStart = async () => {
     setError(null)

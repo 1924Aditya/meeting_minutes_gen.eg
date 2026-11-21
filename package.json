@@ -8,12 +8,15 @@
     "backend"
   ],
   "scripts": {
+    "setup": "node scripts/setup.mjs",
+    "start": "node scripts/start.mjs",
     "dev": "concurrently -n BACKEND,FRONTEND -c cyan,magenta \"npm run dev --workspace=backend\" \"npm run dev --workspace=frontend\"",
     "dev:browser": "concurrently -n AI,BACKEND,VITE -c green,cyan,blue \"cd services/ai && .\\venv\\Scripts\\python.exe -u main.py\" \"cd backend && npm run dev\" \"cd frontend && npm run build:dev\"",
     "dev:mac": "concurrently -n AI,BACKEND,VITE -c green,cyan,blue \"cd services/ai && ./venv/bin/python -u main.py\" \"cd backend && npm run dev\" \"cd frontend && npm run build:dev\"",
-    "clean": "echo Cleaning background tasks... && taskkill /F /FI \"IMAGENAME eq node.exe\" /FI \"PID ne 0\" /T || exit 0",
+    "clean": "powershell -NoProfile -Command \"$ports=3001,5173,8766; Get-NetTCPConnection -State Listen -LocalPort $ports -ErrorAction SilentlyContinue | ForEach-Object { $process=Get-Process -Id $_.OwningProcess -ErrorAction SilentlyContinue; if ($process -and ($process.ProcessName -in 'node','python','pythonw')) { Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue } }\"",
     "clean:mac": "killall node python3 2>/dev/null || true",
-    "build:client": "cd frontend && npm run build:full"
+    "build:client": "cd frontend && npm run build:full",
+    "test": "node --test backend/test/*.test.js && .\\services\\ai\\venv\\Scripts\\python.exe -m unittest services.ai.test_summarizer_models"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"

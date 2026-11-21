@@ -43,6 +43,7 @@ export function initDb() {
 
     CREATE TABLE IF NOT EXISTS summaries (
       session_id   TEXT PRIMARY KEY REFERENCES sessions(id),
+      key_topics   TEXT DEFAULT '[]',
       decisions    TEXT DEFAULT '[]',
       action_items TEXT DEFAULT '[]',
       deadlines    TEXT DEFAULT '[]',
@@ -50,7 +51,19 @@ export function initDb() {
     );
   `)
 
+  const summaryColumns = db.prepare('PRAGMA table_info(summaries)').all()
+  if (!summaryColumns.some(column => column.name === 'key_topics')) {
+    db.exec("ALTER TABLE summaries ADD COLUMN key_topics TEXT DEFAULT '[]'")
+  }
+
   console.log(`[DB] Initialized at ${DB_PATH}`)
+}
+
+export function closeDb() {
+  if (db) {
+    db.close()
+    db = null
+  }
 }
 
 // ── Sessions ──────────────────────────────────────────────────────────────────
@@ -116,10 +129,11 @@ export function getSpeakerMap(sessionId) {
 export function saveSummary(sessionId, summary) {
   db.prepare(`
     INSERT OR REPLACE INTO summaries
-      (session_id, decisions, action_items, deadlines, updated_at)
-    VALUES (?, ?, ?, ?, ?)
+      (session_id, key_topics, decisions, action_items, deadlines, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?)
   `).run(
     sessionId,
+    JSON.stringify(summary.key_topics || []),
     JSON.stringify(summary.decisions || []),
     JSON.stringify(summary.action_items || []),
     JSON.stringify(summary.deadlines || []),
@@ -131,6 +145,7 @@ export function getSummary(sessionId) {
   const row = db.prepare(`SELECT * FROM summaries WHERE session_id = ?`).get(sessionId)
   if (!row) return null
   return {
+    key_topics:   JSON.parse(row.key_topics || '[]'),
     decisions:    JSON.parse(row.decisions || '[]'),
     action_items: JSON.parse(row.action_items || '[]'),
     deadlines:    JSON.parse(row.deadlines || '[]')

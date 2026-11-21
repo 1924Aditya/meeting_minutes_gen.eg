@@ -3,7 +3,15 @@ import cors from '@fastify/cors'
 import websocket from '@fastify/websocket'
 import { v4 as uuidv4 } from 'uuid'
 import WebSocket from 'ws'
-import { initDb, saveSegment, updateSpeakerMap, getFullSession } from './db.js'
+import {
+  initDb,
+  createSession,
+  endSession,
+  saveSegment,
+  saveSummary,
+  updateSpeakerMap,
+  getFullSession
+} from './db.js'
 import { broadcastToClients, clientsMap } from './wsClients.js'
 import { SpeakerMapManager } from './speakerMap.js'
 import { exportMarkdown, exportPDF } from './exporter.js'
@@ -95,6 +103,7 @@ function handleAIMessage(msg) {
     }
 
     case 'SUMMARY_UPDATE': {
+      if (currentSessionId) saveSummary(currentSessionId, msg)
       broadcastToClients(msg)
       break
     }
@@ -160,6 +169,7 @@ function handleRendererMessage(msg, socket) {
     case 'SESSION_CONTROL':
       if (msg.action === 'start') {
         currentSessionId = uuidv4()
+        createSession(currentSessionId)
         console.log(`[Backend] Starting new session: ${currentSessionId}`)
         if (aiConnected && aiSocket?.readyState === 1) {
           aiSocket.send(JSON.stringify({ type: 'SESSION_START', session_id: currentSessionId }))
@@ -170,6 +180,7 @@ function handleRendererMessage(msg, socket) {
         }
       } else if (msg.action === 'stop') {
         console.log(`[Backend] Stopping session: ${currentSessionId}`)
+        if (currentSessionId) endSession(currentSessionId)
         if (aiConnected && aiSocket?.readyState === 1) {
           aiSocket.send(JSON.stringify({ type: 'SESSION_STOP' }))
         }
@@ -205,6 +216,7 @@ function handleRendererMessage(msg, socket) {
       break
 
     case 'CLEAR_SESSION':
+      if (currentSessionId) endSession(currentSessionId)
       currentSessionId = null
       if (aiConnected) aiSocket.send(JSON.stringify({ type: 'CLEAR_SESSION' }))
       break

@@ -62,12 +62,36 @@ class Summarizer:
         
         user_prompt = f"{context_msg}New Transcript Segment:\n{transcript_text}\n\nRefine the summary now."
 
-        # Use the cutting-edge models discovered on your API Key
-        models_to_try = [
-            'gemini-2.0-flash',
+        # Remove retired models and prefer models currently available to this API key.
+        preferred_models = [
+            'gemini-3.8-flash',
+            'gemini-3.6-flash',
+            'gemini-3.5-flash',
+            'gemini-3-flash-preview',
+            'gemini-flash-latest',
             'gemini-2.5-flash',
-            'gemini-3-flash-preview'
+            'gemini-2.5-flash-lite'
         ]
+        models_to_try = preferred_models.copy()
+
+        try:
+            for available_model in self.client.models.list():
+                model_id = getattr(available_model, 'name', '').removeprefix('models/')
+                if not model_id or model_id in models_to_try:
+                    continue
+
+                unsuitable_markers = (
+                    'audio', 'image', 'live', 'tts', 'transcribe',
+                    'embedding', 'robotics', 'research', 'decision',
+                )
+                if (
+                    model_id.startswith('gemini-')
+                    and not any(marker in model_id for marker in unsuitable_markers)
+                    and ('flash' in model_id or 'pro' in model_id or model_id.endswith('-latest'))
+                ):
+                    models_to_try.append(model_id)
+        except Exception as e:
+            log.warning(f"Could not list Gemini models for fallback discovery: {e}")
 
         result = None
         last_error = None
@@ -139,13 +163,15 @@ class Summarizer:
         return combined
 
     def _merge_action_items(self, old: list, new: list) -> list:
-        merged = { item['task']: item for item in old }
+        merged = { item['task']: item for item in old if isinstance(item, dict) and item.get('task') }
         for item in new:
-            merged[item['task']] = item
+            if isinstance(item, dict) and item.get('task'):
+                merged[item['task']] = item
         return list(merged.values())
 
     def _merge_deadlines(self, old: list, new: list) -> list:
-        merged = { item['task']: item for item in old }
+        merged = { item['task']: item for item in old if isinstance(item, dict) and item.get('task') }
         for item in new:
-            merged[item['task']] = item
+            if isinstance(item, dict) and item.get('task'):
+                merged[item['task']] = item
         return list(merged.values())
